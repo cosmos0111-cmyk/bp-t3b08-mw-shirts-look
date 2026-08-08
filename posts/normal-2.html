@@ -1,168 +1,22 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>리눅스 클라우드 VPS(가상 서버) systemd-journald 메모리 힙 누수 및 로그 디스크 포화 제어 기법</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Noto+Sans+KR:wght@400;900&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background-color: #0d0d0f;
-      color: #ebebeb;
-      font-family: 'Space Grotesk', 'Noto Sans KR', sans-serif;
-      line-height: 1.6;
-      padding: 32px;
-    }
-    .wrapper {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 60px;
-    }
-    .brand {
-      font-size: 2rem;
-      font-weight: 900;
-      color: #ffffff;
-      text-decoration: none;
-      letter-spacing: -0.05em;
-    }
-    nav { display: flex; gap: 24px; }
-    nav a {
-      color: #888888;
-      text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-    nav a:hover { color: #f43f5e; }
-    main { margin-bottom: 80px; }
-    .label {
-      font-size: 0.75rem;
-      font-family: monospace;
-      color: #f43f5e;
-      font-weight: bold;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      margin-bottom: 24px;
-    }
-    h1 {
-      font-size: 3rem;
-      font-weight: 900;
-      line-height: 1.15;
-      letter-spacing: -0.04em;
-      color: #ffffff;
-      margin-bottom: 40px;
-    }
-    .article-body {
-      font-size: 1.15rem;
-      color: #cccccc;
-      font-weight: 400;
-      max-width: 780px;
-    }
-    .article-body p { margin-bottom: 24px; }
-    .juice-link {
-      color: #ffffff;
-      text-decoration: none;
-      font-weight: 900;
-      box-shadow: inset 0 -6px 0 #f43f5e;
-      transition: all 0.15s ease-in-out;
-    }
-    .juice-link:hover {
-      box-shadow: inset 0 -24px 0 #f43f5e;
-      color: #ffffff;
-    }
-    .archive-section {
-      margin-top: 80px;
-    }
-    .section-title {
-      font-size: 1rem;
-      font-family: monospace;
-      color: #888888;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 32px;
-    }
-    .archive-list {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .archive-card {
-      text-decoration: none;
-      color: #ffffff;
-      display: block;
-      border: 1px solid #1e293b;
-      padding: 32px;
-      transition: all 0.2s ease;
-    }
-    .archive-card:hover {
-      border-color: #f43f5e;
-      background-color: #0f172a;
-    }
-    .archive-card h3 {
-      font-size: 1.4rem;
-      font-weight: 900;
-      margin-bottom: 12px;
-      letter-spacing: -0.02em;
-    }
-    .archive-card p {
-      color: #888888;
-      font-size: 0.95rem;
-    }
-    footer {
-      border-top: 1px solid #1e293b;
-      padding-top: 32px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.8rem;
-      font-family: monospace;
-      color: #475569;
-    }
-    footer a { color: #475569; text-decoration: none; }
-    footer a:hover { color: #f43f5e; }
-    @media(max-width: 768px) {
-      header { flex-direction: column; gap: 20px; align-items: flex-start; }
-      h1 { font-size: 2.2rem; }
-      .archive-card { padding: 20px; }
-      .archive-card h3 { font-size: 1.2rem; }
-    }
-  </style>
-  <link rel="canonical" href="https://mangwon-shirt-zone.namanavi.com/posts/normal-2.html">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>망원 셔츠룸 룩북 안내</title>
+<link rel="canonical" href="https://mangwon-shirt-zone.namanavi.com/posts/normal-2.html">
+  <meta name="bpaas-link-purpose" content="link-juice">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
   <meta property="og:url" content="https://mangwon-shirt-zone.namanavi.com/posts/normal-2.html">
-  <meta property="og:title" content="리눅스 클라우드 VPS(가상 서버) systemd-journald 메모리 힙 누수 및 로그 디스크 포화 제어 기법">
+  <meta property="og:title" content="망원 셔츠룸 룩북 안내">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary">
 </head>
 <body>
-  <div class="wrapper">
-    <header>
-      <a href="/" class="brand">STREET.KR</a>
-      <nav><a href="../index.html">HOME</a> | <a href="../sitemap.xml">SITEMAP</a></nav>
-    </header>
-    <main>
-      <h1>리눅스 클라우드 VPS(가상 서버) systemd-journald 메모리 힙 누수 및 로그 디스크 포화 제어 기법</h1>
-      <div class="article-body">
-        한정된 자원으로 초경량 고성능 웹 서버를 운영할 때, 실시간 커널 로그가 무제한 적재되어 디스크 공간 부족으로 전체 프로세스가 락되는 파멸적 재앙을 미연에 방지하기 위해 <code>/etc/systemd/journald.conf</code> 설정 파일 내 최대 보존 한계량(SystemMaxUse=100M)을 엄격하게 걸어주는 인프라 최적화 튜닝 기법은 매우 효율적인 핵심 관리 요령입니다.<br><br>데몬 프로세스의 백그라운드 관리와 전원 상태별 로그 스케일링 설정에 관한 표준 정보는 <a href="https://ko.wikipedia.org/wiki/Systemd" target="_blank" style="color: #64748b; text-decoration: underline;">위키백과: systemd 서비스 매니저 제어</a>에서 풍부한 개발 명령 세트들을 확보하실 수 있습니다.
-      </div>
-      
-      
-    </main>
-    <footer>
-      <div>&copy; 2026 STREET.KR. ALL RIGHTS RESERVED.</div>
-      <div>
-        <a href="../sitemap.xml">SITEMAP</a> | 
-        <a href="#">PRIVACY</a> | 
-        <a href="#">DISCLAIMER</a>
-      </div>
-    </footer>
-  </div>
+<h1>망원 셔츠룸 룩북, 어떻게 살펴볼까</h1>
+<p>망원 지역에는 다양한 셔츠룸이 위치해 있습니다. 셔츠룸은 의류와 액세서리를 테마별로 연출한 공간을 의미하며, 방문 전에 룩북을 미리 살펴보면서 스타일 방향성을 잡는 경우가 많습니다. 룩북은 주로 포토존, 의상 컨셉, 인테리어 테마 등을 종합적으로 보여주기 때문에 목적에 맞는 공간을 선택하는 데 도움이 됩니다.</p>
+<p>망원 셔츠룸을 찾을 때는 먼저 목적을 정하는 것이 중요합니다. 데이트 코스로 방문할 것인지, 단체 촬영을 위한 공간인지, 아니면 가벼운 기념 촬영이 주된 목적인지에 따라 요구되는 환경이 달라집니다. 각 셔츠룸은 고유한 컨셉을 가지고 연출을 다르기 때문에, 목적에 부합하는 룩북을 먼저 확인하는 것이 시간 절약에 유리합니다.</p>
+<p>룩북을 살펴볼 때 체크할 포인트는 크게 세 가지입니다. 첫째, 의상 라인업이 넓고 위생적으로 관리되고 있는가입니다. 둘째, 촬영 공간이 협소하거나 혼잡하지 않은가입니다. 셋째, 조명과 배경이 사진 품질에 적절한 조건을 갖추고 있는가입니다. 이러한 요소들은 실제 방문 전 룩북 사진을 통해 어느 정도 파악이 가능합니다.</p>
+<p>유흥 상권 정보는 셔츠룸 위치나 업종 분포, 지역 특징 등을 종합적으로 파악하는 데 유용한 자료입니다. <a class="anchor-link" href="https://trend.sinsa-room-zone.xyz/" data-bpaas-link-target="t2-trend-sinsa-room-zone">유흥 상권 정보 리스트</a> 에서 확인할 수 있습니다. 망원 셔츠룸 룩북을 알아보는 방문객이라면, 지역의 유흥 상권 맥락에서 셔츠룸의 위치와 주변 환경을 함께 고려하면 더 정확한 선택을 할 수 있습니다.</p>
 </body>
 </html>
